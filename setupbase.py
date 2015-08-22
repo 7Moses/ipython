@@ -124,85 +124,11 @@ def find_package_data():
     # This is not enough for these things to appear in an sdist.
     # We need to muck with the MANIFEST to get this to work
     
-    # exclude components and less from the walk;
-    # we will build the components separately
-    excludes = [
-        pjoin('static', 'components'),
-        pjoin('static', '*', 'less'),
-    ]
-    
-    # walk notebook resources:
-    cwd = os.getcwd()
-    os.chdir(os.path.join('IPython', 'html'))
-    static_data = []
-    for parent, dirs, files in os.walk('static'):
-        if any(fnmatch(parent, pat) for pat in excludes):
-            # prevent descending into subdirs
-            dirs[:] = []
-            continue
-        for f in files:
-            static_data.append(pjoin(parent, f))
-    
-    components = pjoin("static", "components")
-    # select the components we actually need to install
-    # (there are lots of resources we bundle for sdist-reasons that we don't actually use)
-    static_data.extend([
-        pjoin(components, "backbone", "backbone-min.js"),
-        pjoin(components, "bootstrap", "js", "bootstrap.min.js"),
-        pjoin(components, "bootstrap-tour", "build", "css", "bootstrap-tour.min.css"),
-        pjoin(components, "bootstrap-tour", "build", "js", "bootstrap-tour.min.js"),
-        pjoin(components, "es6-promise", "*.js"),
-        pjoin(components, "font-awesome", "fonts", "*.*"),
-        pjoin(components, "google-caja", "html-css-sanitizer-minified.js"),
-        pjoin(components, "jquery", "jquery.min.js"),
-        pjoin(components, "jquery-ui", "ui", "minified", "jquery-ui.min.js"),
-        pjoin(components, "jquery-ui", "themes", "smoothness", "jquery-ui.min.css"),
-        pjoin(components, "jquery-ui", "themes", "smoothness", "images", "*"),
-        pjoin(components, "marked", "lib", "marked.js"),
-        pjoin(components, "requirejs", "require.js"),
-        pjoin(components, "underscore", "underscore-min.js"),
-        pjoin(components, "moment", "moment.js"),
-        pjoin(components, "moment", "min", "moment.min.js"),
-        pjoin(components, "term.js", "src", "term.js"),
-        pjoin(components, "text-encoding", "lib", "encoding.js"),
-    ])
-    
-    # Ship all of Codemirror's CSS and JS
-    for parent, dirs, files in os.walk(pjoin(components, 'codemirror')):
-        for f in files:
-            if f.endswith(('.js', '.css')):
-                static_data.append(pjoin(parent, f))
-    
-    os.chdir(os.path.join('tests',))
-    js_tests = glob('*.js') + glob('*/*.js')
-
-    os.chdir(os.path.join(cwd, 'IPython', 'nbconvert'))
-    nbconvert_templates = [os.path.join(dirpath, '*.*')
-                            for dirpath, _, _ in os.walk('templates')]
-
-    os.chdir(cwd)
-
     package_data = {
-        'IPython.config.profile' : ['README*', '*/*.py'],
+        'IPython.core' : ['profile/README*'],
         'IPython.core.tests' : ['*.png', '*.jpg'],
         'IPython.lib.tests' : ['*.wav'],
         'IPython.testing.plugin' : ['*.txt'],
-        'IPython.html' : ['templates/*'] + static_data,
-        'IPython.html.tests' : js_tests,
-        'IPython.qt.console' : ['resources/icon/*.svg'],
-        'IPython.nbconvert' : nbconvert_templates +
-            [
-                'tests/files/*.*',
-                'exporters/tests/files/*.*',
-                'preprocessors/tests/files/*.*',
-            ],
-        'IPython.nbconvert.filters' : ['marked.js'],
-        'IPython.nbformat' : [
-            'tests/*.ipynb',
-            'v3/nbformat.v3.schema.json',
-            'v4/nbformat.v4.schema.json',
-            ],
-        'IPython.kernel': ['resources/*.*'],
     }
     
     return package_data
@@ -373,9 +299,6 @@ def find_entry_points():
     """
     ep = [
             'ipython%s = IPython:start_ipython',
-            'ipcontroller%s = IPython.parallel.apps.ipcontrollerapp:launch_new_instance',
-            'ipengine%s = IPython.parallel.apps.ipengineapp:launch_new_instance',
-            'ipcluster%s = IPython.parallel.apps.ipclusterapp:launch_new_instance',
             'iptest%s = IPython.testing.iptestcontroller:main',
         ]
     suffix = str(sys.version_info[0])
@@ -486,75 +409,10 @@ class install_scripts_for_symlink(install_scripts):
                                    ('skip_build', 'skip_build'),
                                   )
 
-#---------------------------------------------------------------------------
-# Verify all dependencies
-#---------------------------------------------------------------------------
-
-def check_for_dependencies():
-    """Check for IPython's dependencies.
-
-    This function should NOT be called if running under setuptools!
-    """
-    from setupext.setupext import (
-        print_line, print_raw, print_status,
-        check_for_sphinx, check_for_pygments,
-        check_for_nose, check_for_pexpect,
-        check_for_pyzmq, check_for_readline,
-        check_for_jinja2, check_for_tornado
-    )
-    print_line()
-    print_raw("BUILDING IPYTHON")
-    print_status('python', sys.version)
-    print_status('platform', sys.platform)
-    if sys.platform == 'win32':
-        print_status('Windows version', sys.getwindowsversion())
-
-    print_raw("")
-    print_raw("OPTIONAL DEPENDENCIES")
-
-    check_for_sphinx()
-    check_for_pygments()
-    check_for_nose()
-    if os.name == 'posix':
-        check_for_pexpect()
-    check_for_pyzmq()
-    check_for_tornado()
-    check_for_readline()
-    check_for_jinja2()
 
 #---------------------------------------------------------------------------
 # VCS related
 #---------------------------------------------------------------------------
-
-# utils.submodule has checks for submodule status
-execfile(pjoin('IPython','utils','submodule.py'), globals())
-
-class UpdateSubmodules(Command):
-    """Update git submodules
-    
-    IPython's external javascript dependencies live in a separate repo.
-    """
-    description = "Update git submodules"
-    user_options = []
-    
-    def initialize_options(self):
-        pass
-    
-    def finalize_options(self):
-        pass
-    
-    def run(self):
-        failure = False
-        try:
-            self.spawn('git submodule init'.split())
-            self.spawn('git submodule update --recursive'.split())
-        except Exception as e:
-            failure = e
-            print(e)
-        
-        if not check_submodule_status(repo_root) == 'clean':
-            print("submodules could not be checked out")
-            sys.exit(1)
 
 
 def git_prebuild(pkg_dir, build_cmd=build_py):
@@ -563,8 +421,6 @@ def git_prebuild(pkg_dir, build_cmd=build_py):
     records git commit in IPython.utils._sysinfo.commit
     
     for use in IPython.utils.sysinfo.sys_info() calls after installation.
-    
-    Also ensures that submodules exist prior to running
     """
     
     class MyBuildPy(build_cmd):
@@ -606,163 +462,5 @@ def git_prebuild(pkg_dir, build_cmd=build_py):
                     '# GENERATED BY setup.py\n',
                     'commit = u"%s"\n' % repo_commit,
                 ])
-    return require_submodules(MyBuildPy)
+    return MyBuildPy
 
-
-def require_submodules(command):
-    """decorator for instructing a command to check for submodules before running"""
-    class DecoratedCommand(command):
-        def run(self):
-            if not check_submodule_status(repo_root) == 'clean':
-                print("submodules missing! Run `setup.py submodule` and try again")
-                sys.exit(1)
-            command.run(self)
-    return DecoratedCommand
-
-#---------------------------------------------------------------------------
-# bdist related
-#---------------------------------------------------------------------------
-
-def get_bdist_wheel():
-    """Construct bdist_wheel command for building wheels
-    
-    Constructs py2-none-any tag, instead of py2.7-none-any
-    """
-    class RequiresWheel(Command):
-        description = "Dummy command for missing bdist_wheel"
-        user_options = []
-
-        def initialize_options(self):
-            pass
-
-        def finalize_options(self):
-            pass
-
-        def run(self):
-            print("bdist_wheel requires the wheel package")
-            sys.exit(1)
-
-    if 'setuptools' not in sys.modules:
-        return RequiresWheel
-    else:
-        try:
-            from wheel.bdist_wheel import bdist_wheel, read_pkg_info, write_pkg_info
-        except ImportError:
-            return RequiresWheel
-        
-        class bdist_wheel_tag(bdist_wheel):
-
-            def add_requirements(self, metadata_path):
-                """transform platform-dependent requirements"""
-                pkg_info = read_pkg_info(metadata_path)
-                # pkg_info is an email.Message object (?!)
-                # we have to remove the unconditional 'readline' and/or 'pyreadline' entries
-                # and transform them to conditionals
-                requires = pkg_info.get_all('Requires-Dist')
-                del pkg_info['Requires-Dist']
-                def _remove_startswith(lis, prefix):
-                    """like list.remove, but with startswith instead of =="""
-                    found = False
-                    for idx, item in enumerate(lis):
-                        if item.startswith(prefix):
-                            found = True
-                            break
-                    if found:
-                        lis.pop(idx)
-                
-                for pkg in ("gnureadline", "pyreadline", "mock", "terminado"):
-                    _remove_startswith(requires, pkg)
-                requires.append("gnureadline; sys.platform == 'darwin' and platform.python_implementation == 'CPython'")
-                requires.append("terminado (>=0.3.3); extra == 'notebook' and sys.platform != 'win32'")
-                requires.append("terminado (>=0.3.3); extra == 'all' and sys.platform != 'win32'")
-                requires.append("pyreadline (>=2.0); extra == 'terminal' and sys.platform == 'win32' and platform.python_implementation == 'CPython'")
-                requires.append("pyreadline (>=2.0); extra == 'all' and sys.platform == 'win32' and platform.python_implementation == 'CPython'")
-                requires.append("mock; extra == 'test' and python_version < '3.3'")
-                for r in requires:
-                    pkg_info['Requires-Dist'] = r
-                write_pkg_info(metadata_path, pkg_info)
-        
-        return bdist_wheel_tag
-
-#---------------------------------------------------------------------------
-# Notebook related
-#---------------------------------------------------------------------------
-
-class CompileCSS(Command):
-    """Recompile Notebook CSS
-    
-    Regenerate the compiled CSS from LESS sources.
-    
-    Requires various dev dependencies, such as invoke and lessc.
-    """
-    description = "Recompile Notebook CSS"
-    user_options = [
-        ('minify', 'x', "minify CSS"),
-        ('force', 'f', "force recompilation of CSS"),
-    ]
-    
-    def initialize_options(self):
-        self.minify = False
-        self.force = False
-    
-    def finalize_options(self):
-        self.minify = bool(self.minify)
-        self.force = bool(self.force)
-    
-    def run(self):
-        cmd = ['invoke', 'css']
-        if self.minify:
-            cmd.append('--minify')
-        if self.force:
-            cmd.append('--force')
-        try:
-            p = Popen(cmd, cwd=pjoin(repo_root, "IPython", "html"), stderr=PIPE)
-        except OSError:
-            raise DistutilsExecError("invoke is required to rebuild css (pip install invoke)")
-        out, err = p.communicate()
-        if p.returncode:
-            if sys.version_info[0] >= 3:
-                err = err.decode('utf8', 'replace')
-            raise DistutilsExecError(err.strip())
-
-
-class JavascriptVersion(Command):
-    """write the javascript version to notebook javascript"""
-    description = "Write IPython version to javascript"
-    user_options = []
-    
-    def initialize_options(self):
-        pass
-    
-    def finalize_options(self):
-        pass
-    
-    def run(self):
-        nsfile = pjoin(repo_root, "IPython", "html", "static", "base", "js", "namespace.js")
-        with open(nsfile) as f:
-            lines = f.readlines()
-        with open(nsfile, 'w') as f:
-            found = False
-            for line in lines:
-                if line.strip().startswith("IPython.version"):
-                    line = '    IPython.version = "{0}";\n'.format(version)
-                    found = True
-                f.write(line)
-            if not found:
-                raise RuntimeError("Didn't find IPython.version line in %s" % nsfile)
-
-
-def css_js_prerelease(command):
-    """decorator for building js/minified css prior to a release"""
-    class DecoratedCommand(command):
-        def run(self):
-            self.distribution.run_command('jsversion')
-            css = self.distribution.get_command_obj('css')
-            css.minify = True
-            try:
-                self.distribution.run_command('css')
-            except Exception as e:
-                log.warn("rebuilding css and sourcemaps failed (not a problem)")
-                log.warn(str(e))
-            command.run(self)
-    return DecoratedCommand

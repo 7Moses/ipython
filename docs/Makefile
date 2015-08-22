@@ -28,12 +28,12 @@ help:
 	@echo "  info        Texinfo files and run them through makeinfo"
 	@echo "  changes     an overview over all changed/added/deprecated items"
 	@echo "  linkcheck   check all external links for integrity (takes a long time)"
+	@echo "  gh-pages    clone IPython docs in ./gh-pages/ , build doc, autocommit"
 	@echo
 	@echo "Compound utility targets:"
 	@echo "pdf          latex and then runs the PDF generation"
 	@echo "all          html and pdf"
 	@echo "dist         all, and then puts the results in dist/"
-	@echo "gitwash-update update git workflow from source repo"
 
 clean_api:
 	-rm -rf $(SRCDIR)/api/generated
@@ -59,7 +59,7 @@ dist: html
 	cp -al build/html .
 	@echo "Build finished.  Final docs are in html/"
 
-html: jsapi api autoconfig automagic
+html: api autoconfig automagic
 html_noapi: clean_api autoconfig automagic
 
 html html_noapi:
@@ -79,9 +79,6 @@ autoconfig: source/config/options/generated
 source/config/options/generated:
 	python autogen_config.py
 	@echo "Created docs for config options"
-
-jsapi:
-	jsdoc -c jsdoc_config.json -d ./build/jsapi_html/
 
 api: source/api/generated/gen.txt
 
@@ -136,9 +133,6 @@ linkcheck:
 	@echo
 	@echo "Link check complete; look for any errors in the above output " \
 	      "or in build/linkcheck/output.rst."
-
-gitwash-update:
-	python ../tools/gitwash_dumper.py source/development ipython
 
 nightly: dist
 	rsync -avH --delete dist/ ipython:www/doc/nightly

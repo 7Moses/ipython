@@ -63,22 +63,12 @@ from setupbase import (
     find_entry_points,
     build_scripts_entrypt,
     find_data_files,
-    check_for_dependencies,
     git_prebuild,
-    check_submodule_status,
-    update_submodules,
-    require_submodules,
-    UpdateSubmodules,
-    get_bdist_wheel,
-    CompileCSS,
-    JavascriptVersion,
-    css_js_prerelease,
     install_symlinked,
     install_lib_symlink,
     install_scripts_for_symlink,
     unsymlink,
 )
-from setupext import setupext
 
 isfile = os.path.isfile
 pjoin = os.path.join
@@ -99,42 +89,6 @@ if os_name == 'windows' and 'sdist' in sys.argv:
     print('The sdist command is not available under Windows.  Exiting.')
     sys.exit(1)
 
-#-------------------------------------------------------------------------------
-# Make sure we aren't trying to run without submodules
-#-------------------------------------------------------------------------------
-here = os.path.abspath(os.path.dirname(__file__))
-
-def require_clean_submodules():
-    """Check on git submodules before distutils can do anything
-
-    Since distutils cannot be trusted to update the tree
-    after everything has been set in motion,
-    this is not a distutils command.
-    """
-    # PACKAGERS: Add a return here to skip checks for git submodules
-    
-    # don't do anything if nothing is actually supposed to happen
-    for do_nothing in ('-h', '--help', '--help-commands', 'clean', 'submodule'):
-        if do_nothing in sys.argv:
-            return
-
-    status = check_submodule_status(here)
-
-    if status == "missing":
-        print("checking out submodules for the first time")
-        update_submodules(here)
-    elif status == "unclean":
-        print('\n'.join([
-            "Cannot build / install IPython with unclean submodules",
-            "Please update submodules with",
-            "    python setup.py submodule",
-            "or",
-            "    git submodule update",
-            "or commit any submodule changes you have made."
-        ]))
-        sys.exit(1)
-
-require_clean_submodules()
 
 #-------------------------------------------------------------------------------
 # Things related to the IPython documentation
@@ -146,28 +100,9 @@ if len(sys.argv) >= 2 and sys.argv[1] in ('sdist','bdist_rpm'):
     # List of things to be updated. Each entry is a triplet of args for
     # target_update()
     to_update = [
-                  # FIXME - Disabled for now: we need to redo an automatic way
-                  # of generating the magic info inside the rst.
-                  #('docs/magic.tex',
-                  #['IPython/Magic.py'],
-                  #"cd doc && ./update_magic.sh" ),
-
-                 ('docs/man/ipcluster.1.gz',
-                  ['docs/man/ipcluster.1'],
-                  'cd docs/man && gzip -9c ipcluster.1 > ipcluster.1.gz'),
-
-                 ('docs/man/ipcontroller.1.gz',
-                  ['docs/man/ipcontroller.1'],
-                  'cd docs/man && gzip -9c ipcontroller.1 > ipcontroller.1.gz'),
-
-                 ('docs/man/ipengine.1.gz',
-                  ['docs/man/ipengine.1'],
-                  'cd docs/man && gzip -9c ipengine.1 > ipengine.1.gz'),
-
                  ('docs/man/ipython.1.gz',
                   ['docs/man/ipython.1'],
                   'cd docs/man && gzip -9c ipython.1 > ipython.1.gz'),
-
                  ]
 
 
@@ -213,18 +148,16 @@ class UploadWindowsInstallers(upload):
             self.upload_file('bdist_wininst', 'any', dist_file)
 
 setup_args['cmdclass'] = {
-    'build_py': css_js_prerelease(
-            check_package_data_first(git_prebuild('IPython'))),
-    'sdist' : css_js_prerelease(git_prebuild('IPython', sdist)),
+    'build_py': \
+            check_package_data_first(git_prebuild('IPython')),
+    'sdist' : git_prebuild('IPython', sdist),
     'upload_wininst' : UploadWindowsInstallers,
-    'submodule' : UpdateSubmodules,
-    'css' : CompileCSS,
     'symlink': install_symlinked,
     'install_lib_symlink': install_lib_symlink,
     'install_scripts_sym': install_scripts_for_symlink,
     'unsymlink': unsymlink,
-    'jsversion' : JavascriptVersion,
 }
+
 
 #---------------------------------------------------------------------------
 # Handle scripts, dependencies, and setuptools specific things
@@ -246,36 +179,46 @@ setuptools_extra_args = {}
 
 # setuptools requirements
 
-pyzmq = 'pyzmq>=13'
-
 extras_require = dict(
-    parallel = [pyzmq],
-    qtconsole = [pyzmq, 'pygments'],
+    parallel = ['ipyparallel'],
+    qtconsole = ['qtconsole'],
     doc = ['Sphinx>=1.1', 'numpydoc'],
-    test = ['nose>=0.10.1', 'requests'],
+    test = ['nose>=0.10.1', 'requests', 'testpath'],
     terminal = [],
-    nbformat = ['jsonschema>=2.0'],
-    notebook = ['tornado>=4.0', pyzmq, 'jinja2', 'pygments', 'mistune>=0.5'],
-    nbconvert = ['pygments', 'jinja2', 'mistune>=0.3.1']
+    kernel = ['ipykernel'],
+    nbformat = ['nbformat'],
+    notebook = ['notebook'],
+    nbconvert = ['nbconvert'],
 )
+install_requires = [
+    'decorator',
+    'pickleshare',
+    'simplegeneric>0.8',
+    'traitlets',
+]
 
-if not sys.platform.startswith('win'):
-    extras_require['notebook'].append('terminado>=0.3.3')
+# Platform-specific dependencies:
+# This is the correct way to specify these,
+# but requires pip >= 6. pip < 6 ignores these.
+extras_require.update({
+    ':sys_platform != "win32"': ['pexpect'],
+    ':sys_platform == "darwin"': ['appnope', 'gnureadline'],
+    'terminal:sys_platform == "win32"': ['pyreadline>=2'],
+    'test:python_version == "2.7"': ['mock'],
+})
+# FIXME: re-specify above platform dependencies for pip < 6
+# These would result in non-portable bdists.
+if not any(arg.startswith('bdist') for arg in sys.argv):
+    if sys.version_info < (3, 3):
+        extras_require['test'].append('mock')
 
-if sys.version_info < (3, 3):
-    extras_require['test'].append('mock')
+    if sys.platform == 'darwin':
+        install_requires.extend(['appnope', 'gnureadline'])
 
-extras_require['notebook'].extend(extras_require['nbformat'])
-extras_require['nbconvert'].extend(extras_require['nbformat'])
-
-install_requires = []
-
-# add readline
-if sys.platform == 'darwin':
-    if 'bdist_wheel' in sys.argv[1:] or not setupext.check_for_readline():
-        install_requires.append('gnureadline')
-elif sys.platform.startswith('win'):
-    extras_require['terminal'].append('pyreadline>=2.0')
+    if sys.platform.startswith('win'):
+        extras_require['terminal'].append('pyreadline>=2.0')
+    else:
+        install_requires.append('pexpect')
 
 everything = set()
 for deps in extras_require.values():
@@ -283,18 +226,13 @@ for deps in extras_require.values():
 extras_require['all'] = everything
 
 if 'setuptools' in sys.modules:
-    # setup.py develop should check for submodules
-    from setuptools.command.develop import develop
-    setup_args['cmdclass']['develop'] = require_submodules(develop)
-    setup_args['cmdclass']['bdist_wheel'] = css_js_prerelease(get_bdist_wheel())
-    
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
         'console_scripts': find_entry_points(),
         'pygments.lexers': [
-            'ipythonconsole = IPython.nbconvert.utils.lexers:IPythonConsoleLexer',
-            'ipython = IPython.nbconvert.utils.lexers:IPythonLexer',
-            'ipython3 = IPython.nbconvert.utils.lexers:IPython3Lexer',
+            'ipythonconsole = IPython.lib.lexers:IPythonConsoleLexer',
+            'ipython = IPython.lib.lexers:IPythonLexer',
+            'ipython3 = IPython.lib.lexers:IPython3Lexer',
         ],
     }
     setup_args['extras_require'] = extras_require
@@ -317,13 +255,6 @@ if 'setuptools' in sys.modules:
                                   "ipython_win_post_install.py"}}
 
 else:
-    # If we are installing without setuptools, call this function which will
-    # check for dependencies an inform the user what is needed.  This is
-    # just to make life easy for users.
-    for install_cmd in ('install', 'symlink'):
-        if install_cmd in sys.argv:
-            check_for_dependencies()
-            break
     # scripts has to be a non-empty list, or install_scripts isn't called
     setup_args['scripts'] = [e.split('=')[0].strip() for e in find_entry_points()]
 

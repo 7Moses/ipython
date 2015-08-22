@@ -3,19 +3,67 @@
 Issues closed in the 3.x development cycle
 ==========================================
 
+Issues closed in 3.1
+--------------------
+
+GitHub stats for 2015/02/27 - 2015/04/03 (since 3.0)
+
+These lists are automatically generated, and may be incomplete or contain duplicates.
+
+We closed 46 issues and merged 133 pull requests.
+The full list can be seen `on GitHub <https://github.com/ipython/ipython/milestones/3.1>`__.
+
+The following 33 authors contributed 344 commits:
+
+* Abe Guerra
+* Adal Chiriliuc
+* Benjamin Ragan-Kelley
+* Brian Drawert
+* Fernando Perez
+* Gareth Elston
+* Gert-Ludwig Ingold
+* Giuseppe Venturini
+* Jakob Gager
+* Jan Schulz
+* Jason Grout
+* Jessica B. Hamrick
+* Jonathan Frederic
+* Justin Tyberg
+* Lorena Pantano
+* mashenjun
+* Mathieu
+* Matthias Bussonnier
+* Morten Enemark Lund
+* Naveen Nathan
+* Nicholas Bollweg
+* onesandzeroes
+* Patrick Snape
+* Peter Parente
+* RickWinter
+* Robert Smith
+* Ryan Nelson
+* Scott Sanderson
+* Sylvain Corlay
+* Thomas Kluyver
+* tmtabor
+* Wieland Hoffmann
+* Yuval Langer
+
+
 Issues closed in 3.0
-----------------------
+--------------------
 
 GitHub stats for 2014/04/02 - 2015/02/13 (since 2.0)
 
 These lists are automatically generated, and may be incomplete or contain duplicates.
 
-We closed 462 issues and merged 923 pull requests.
-The full list can be seen `on GitHub <https://github.com/ipython/ipython/milestones/3.0>`_.
+We closed 469 issues and merged 925 pull requests.
+The full list can be seen `on GitHub <https://github.com/ipython/ipython/milestones/3.0>`__.
 
-The following 155 authors contributed 5951 commits.
+The following 155 authors contributed 5975 commits.
 
 * A.J. Holyoake
+* abalkin
 * Adam Hodgen
 * Adrian Price-Whelan
 * Amin Bandali
@@ -80,7 +128,6 @@ The following 155 authors contributed 5951 commits.
 * Jason Gors
 * Jason Grout
 * Jason Newton
-* JC
 * jdavidheiser
 * Jean-Christophe Jaskula
 * Jeff Hemmelgarn
@@ -105,10 +152,10 @@ The following 155 authors contributed 5951 commits.
 * Kester Tong
 * Kyle Kelley
 * Kyle Rawlins
-* LaptopOfJohn
 * Lev Abalkin
 * Manuel Riel
 * Martin Bergtholdt
+* Martin Spacek
 * Mateusz Paprocki
 * Mathieu
 * Matthias Bussonnier

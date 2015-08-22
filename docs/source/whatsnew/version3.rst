@@ -2,11 +2,38 @@
  3.x Series
 ============
 
+IPython 3.1
+===========
+
+Released April 3, 2015
+
+The first 3.x bugfix release, with 33 contributors and 344 commits.
+This primarily includes bugfixes to notebook layout and focus problems.
+
+
+Highlights:
+
+- Various focus jumping and scrolling fixes in the notebook.
+- Various message ordering and widget fixes in the notebook.
+- Images in markdown and output are confined to the notebook width.
+  An `.unconfined` CSS class is added to disable this behavior per-image.
+  The resize handle on output images is removed.
+- Improved ordering of tooltip content for Python functions, putting the signature at the top.
+- Fix UnicodeErrors when displaying some objects with unicode reprs on Python 2.
+- Set the kernel's working directory to the notebook directory when running ``nbconvert --execute``,
+  so that behavior matches the live notebook.
+- Allow setting custom SSL options for the tornado server with ``NotebookApp.ssl_options``,
+  and protect against POODLE with default settings by disabling SSLv3.
+- Fix memory leak in the IPython.parallel Controller on Python 3.
+
+
+See :ref:`issues_list_3` for details.
+
 
 Release 3.0
 ===========
 
-Coming February, 2015
+Released February 27, 2015
 
 This is a really big release. Over 150 contributors, and almost 6000 commits in a bit under a year.
 Support for languages other than Python is greatly improved,
@@ -65,6 +92,12 @@ Complex expressions can be much cleaner when written with a wider choice of
 characters. Python 3 allows unicode identifiers, and IPython 3 makes it easier
 to type those, using a feature from Julia. Type a backslash followed by a LaTeX
 style short name, such as ``\alpha``. Press tab, and it will turn into α.
+
+Widget migration guide
+----------------------
+The widget framework has a lot of backwards incompatible changes.
+For information about migrating widget notebooks and custom widgets to 3.0 refer
+to the :doc:`widget migration guide<version3_widget_migration>`.
 
 Other new features
 ------------------
@@ -212,6 +245,12 @@ Backwards incompatible changes
   * use :func:`IPython.nbformat.read` and :func:`~IPython.nbformat.write`
     to read and write notebook files
     instead of the deprecated :mod:`IPython.nbformat.current` APIs.
+
+  You can downgrade a notebook to v3 via ``nbconvert``::
+  
+      ipython nbconvert --to notebook --nbformat 3 <notebook>
+  
+  which will create :file:`notebook.v3.ipynb`, a copy of the notebook in v3 format.
 
 * :func:`IPython.core.oinspect.getsource` call specification has changed:
 
