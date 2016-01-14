@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import io
-import json
 import sys
 from pprint import pformat
 
@@ -194,8 +193,6 @@ class BasicMagics(Magics):
         mode = ''
         try:
             mode = parameter_s.split()[0][1:]
-            if mode == 'rest':
-                rest_docs = []
         except IndexError:
             pass
 
@@ -247,7 +244,7 @@ NOTE: If you have 'automagic' enabled (via the command line option or with the
 magics; cell magics always require an explicit '%%' escape.  By default,
 IPython ships with automagic on, so you should only rarely need the % escape.
 
-Example: typing '%cd mydir' (without the quotes) changes you working directory
+Example: typing '%cd mydir' (without the quotes) changes your working directory
 to 'mydir', if it exists.
 
 For a list of the available magic functions, use %lsmagic. For a description
@@ -454,7 +451,7 @@ Defaulting color scheme to 'NoColor'"""
         save_dstore('rc_active_types',disp_formatter.active_types)
         save_dstore('prompt_templates',(pm.in_template, pm.in2_template, pm.out_template))
 
-        if mode == False:
+        if not mode:
             # turn on
             pm.in_template = '>>> '
             pm.in2_template = '... '
