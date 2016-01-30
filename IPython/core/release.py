@@ -22,8 +22,8 @@ name = 'ipython'
 _version_major = 4
 _version_minor = 1
 _version_patch = 0
-_version_extra = 'dev'
-# _version_extra = 'rc1'
+_version_extra = '.dev'
+# _version_extra = 'rc2'
 # _version_extra = ''  # Uncomment this for full releases
 
 # release.codename is deprecated in 2.0, will be removed in 3.0
@@ -34,7 +34,7 @@ _ver = [_version_major, _version_minor, _version_patch]
 
 __version__ = '.'.join(map(str, _ver))
 if _version_extra:
-    __version__ = __version__ + '-' + _version_extra
+    __version__ = __version__  + _version_extra
 
 version = __version__  # backwards compatibility name
 version_info = (_version_major, _version_minor, _version_patch, _version_extra)
@@ -105,12 +105,10 @@ author_email = 'ipython-dev@scipy.org'
 
 url = 'http://ipython.org'
 
-download_url = 'https://github.com/ipython/ipython/downloads'
 
-platforms = ['Linux','Mac OSX','Windows XP/Vista/7/8']
+platforms = ['Linux','Mac OSX','Windows']
 
-keywords = ['Interactive','Interpreter','Shell','Parallel','Distributed',
-            'Web-based computing', 'Qt console', 'Embedding']
+keywords = ['Interactive','Interpreter','Shell', 'Embedding']
 
 classifiers = [
     'Framework :: IPython',
