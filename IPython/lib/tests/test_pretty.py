@@ -7,11 +7,13 @@
 from __future__ import print_function
 
 from collections import Counter, defaultdict, deque, OrderedDict
+import types, string
 
 import nose.tools as nt
 
 from IPython.lib import pretty
-from IPython.testing.decorators import skip_without, py2_only
+from IPython.testing.decorators import (skip_without, py2_only, py3_only)
+                                        
 from IPython.utils.py3compat import PY3, unicode_to_str
 
 if PY3:
@@ -159,7 +161,7 @@ def test_pprint_break_repr():
 def test_bad_repr():
     """Don't catch bad repr errors"""
     with nt.assert_raises(ZeroDivisionError):
-        output = pretty.pretty(BadRepr())
+        pretty.pretty(BadRepr())
 
 class BadException(Exception):
     def __str__(self):
@@ -176,7 +178,7 @@ class ReallyBadRepr(object):
 
 def test_really_bad_repr():
     with nt.assert_raises(BadException):
-        output = pretty.pretty(ReallyBadRepr())
+        pretty.pretty(ReallyBadRepr())
 
 
 class SA(object):
@@ -186,12 +188,14 @@ class SB(SA):
     pass
 
 def test_super_repr():
+    # "<super: module_name.SA, None>"
     output = pretty.pretty(super(SA))
-    nt.assert_in("SA", output)
+    nt.assert_regexp_matches(output, r"<super: \S+.SA, None>")
 
+    # "<super: module_name.SA, <module_name.SB at 0x...>>"
     sb = SB()
     output = pretty.pretty(super(SA, sb))
-    nt.assert_in("SA", output)
+    nt.assert_regexp_matches(output, r"<super: \S+.SA,\s+<\S+.SB at 0x\S+>>")
 
 
 def test_long_list():
@@ -433,6 +437,51 @@ def test_collections_counter():
         (Counter(), 'Counter()'),
         (Counter(a=1), "Counter({'a': 1})"),
         (MyCounter(a=1), "MyCounter({'a': 1})"),
+    ]
+    for obj, expected in cases:
+        nt.assert_equal(pretty.pretty(obj), expected)
+
+@py3_only
+def test_mappingproxy():
+    MP = types.MappingProxyType
+    underlying_dict = {}
+    mp_recursive = MP(underlying_dict)
+    underlying_dict[2] = mp_recursive
+    underlying_dict[3] = underlying_dict
+
+    cases = [
+        (MP({}), "mappingproxy({})"),
+        (MP({None: MP({})}), "mappingproxy({None: mappingproxy({})})"),
+        (MP({k: k.upper() for k in string.ascii_lowercase}),
+         "mappingproxy({'a': 'A',\n"
+         "              'b': 'B',\n"
+         "              'c': 'C',\n"
+         "              'd': 'D',\n"
+         "              'e': 'E',\n"
+         "              'f': 'F',\n"
+         "              'g': 'G',\n"
+         "              'h': 'H',\n"
+         "              'i': 'I',\n"
+         "              'j': 'J',\n"
+         "              'k': 'K',\n"
+         "              'l': 'L',\n"
+         "              'm': 'M',\n"
+         "              'n': 'N',\n"
+         "              'o': 'O',\n"
+         "              'p': 'P',\n"
+         "              'q': 'Q',\n"
+         "              'r': 'R',\n"
+         "              's': 'S',\n"
+         "              't': 'T',\n"
+         "              'u': 'U',\n"
+         "              'v': 'V',\n"
+         "              'w': 'W',\n"
+         "              'x': 'X',\n"
+         "              'y': 'Y',\n"
+         "              'z': 'Z'})"),
+        (mp_recursive, "mappingproxy({2: {...}, 3: {2: {...}, 3: {...}}})"),
+        (underlying_dict,
+         "{2: mappingproxy({2: {...}, 3: {...}}), 3: {...}}"),
     ]
     for obj, expected in cases:
         nt.assert_equal(pretty.pretty(obj), expected)

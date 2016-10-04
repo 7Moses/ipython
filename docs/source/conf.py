@@ -22,11 +22,11 @@ ON_RTD = os.environ.get('READTHEDOCS', None) == 'True'
 if ON_RTD:
     # Mock the presence of matplotlib, which we don't have on RTD
     # see
-    # http://read-the-docs.readthedocs.org/en/latest/faq.html
+    # http://read-the-docs.readthedocs.io/en/latest/faq.html
     tags.add('rtd')
 
     # RTD doesn't use the Makefile, so re-run autogen_{things}.py here.
-    for name in ('config', 'api', 'magics'):
+    for name in ('config', 'api', 'magics', 'shortcuts'):
         fname = 'autogen_{}.py'.format(name)
         fpath = os.path.abspath(os.path.join('..', fname))
         with open(fpath) as f:
@@ -34,6 +34,10 @@ if ON_RTD:
                 '__file__': fpath,
                 '__name__': '__main__',
             })
+else:
+    import sphinx_rtd_theme
+    html_theme = "sphinx_rtd_theme"
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # If your extensions are in another directory, add it here. If the directory
 # is relative to the documentation root, use os.path.abspath to make it
@@ -79,14 +83,37 @@ templates_path = ['_templates']
 # The suffix of source filenames.
 source_suffix = '.rst'
 
-if iprelease['_version_extra'] == 'dev':
-    rst_prolog = """
-    .. note::
+rst_prolog = ''
 
-        This documentation is for a development version of IPython. There may be
-        significant differences from the latest stable release.
+def is_stable(extra):
+    for ext in {'dev', 'b', 'rc'}:
+        if ext in extra:
+            return False
+    return True
 
-    """
+if is_stable(iprelease['_version_extra']):
+    tags.add('ipystable')
+else:
+    tags.add('ipydev')
+    rst_prolog += """
+.. warning::
+
+    This documentation covers a development version of IPython. The development
+    version may differ significantly from the latest stable release.
+"""
+
+rst_prolog += """
+.. important::
+
+    This documentation covers IPython versions 6.0 and higher. Beginning with
+    version 6.0, IPython stopped supporting compatibility with Python versions
+    lower than 3.3 including all versions of Python 2.7.
+
+    If you are looking for an IPython version compatible with Python 2.7,
+    please use the IPython 5.x LTS release and refer to its documentation (LTS
+    is the long term support release).
+
+"""
 
 # The master toctree document.
 master_doc = 'index'
@@ -148,8 +175,8 @@ default_role = 'literal'
 # The style sheet to use for HTML and HTML Help pages. A file of that name
 # must exist either in Sphinx' static/ path, or in one of the custom paths
 # given in html_static_path.
-html_style = 'default.css'
-html_favicon = 'favicon.ico'
+# html_style = 'default.css'
+
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
@@ -164,6 +191,8 @@ html_favicon = 'favicon.ico'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# Favicon needs the directory name
+html_favicon = '_static/favicon.ico'
 # If not '', a 'Last updated on:' timestamp is inserted at every page bottom,
 # using the given strftime format.
 html_last_updated_fmt = '%b %d, %Y'
@@ -201,12 +230,12 @@ html_additional_pages = {
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'ipythondoc'
 
-intersphinx_mapping = {'python': ('http://docs.python.org/2/', None),
-                       'rpy2': ('http://rpy.sourceforge.net/rpy2/doc-2.4/html/', None),
-                       'traitlets': ('http://traitlets.readthedocs.org/en/latest/', None),
-                       'jupyterclient': ('http://jupyter-client.readthedocs.org/en/latest/', None),
-                       'ipyparallel': ('http://ipyparallel.readthedocs.org/en/latest/', None),
-                       'jupyter': ('http://jupyter.readthedocs.org/en/latest/', None),
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None),
+                       'rpy2': ('https://rpy2.readthedocs.io/en/version_2.8.x/', None),
+                       'traitlets': ('https://traitlets.readthedocs.io/en/latest/', None),
+                       'jupyterclient': ('https://jupyter-client.readthedocs.io/en/latest/', None),
+                       'ipyparallel': ('https://ipyparallel.readthedocs.io/en/latest/', None),
+                       'jupyter': ('https://jupyter.readthedocs.io/en/latest/', None),
                       }
 
 # Options for LaTeX output

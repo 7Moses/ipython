@@ -44,16 +44,11 @@ pjoin = path.join
 
 
 # Enable printing all warnings raise by IPython's modules
+warnings.filterwarnings('ignore', message='.*Matplotlib is building the font cache.*', category=UserWarning, module='.*')
+if sys.version_info > (3,0):
+    warnings.filterwarnings('error', message='.*', category=ResourceWarning, module='.*')
+warnings.filterwarnings('error', message=".*{'config': True}.*", category=DeprecationWarning, module='IPy.*')
 warnings.filterwarnings('default', message='.*', category=Warning, module='IPy.*')
-
-
-if version_info < (4,2):
-    # ignore some warnings from traitlets until 6.0
-    warnings.filterwarnings('ignore', message='.*on_trait_change is deprecated: use observe instead.*')
-    warnings.filterwarnings('ignore', message='.*was set from the constructor.*', category=Warning, module='IPython.*')
-    warnings.filterwarnings('ignore', message='.*use the instance .help string directly, like x.help.*', category=DeprecationWarning, module='IPython.*')
-else :
-    warnings.warn('iptest has been filtering out for Traitlets warnings messages, for 2 minor versions (since 4.x), please consider updating to use new API')
 
 if version_info < (6,):
     # nose.tools renames all things from `camelCase` to `snake_case` which raise an
@@ -212,7 +207,7 @@ test_group_names.append('autoreload')
 
 def check_exclusions_exist():
     from IPython.paths import get_ipython_package_dir
-    from IPython.utils.warn import warn
+    from warnings import warn
     parent = os.path.dirname(get_ipython_package_dir())
     for sec in test_sections:
         for pattern in sec.exclusions:
@@ -369,9 +364,6 @@ def run_iptest():
     if '--with-xunit' in sys.argv and not hasattr(Xunit, 'orig_addError'):
         monkeypatch_xunit()
 
-    warnings.filterwarnings('ignore',
-        'This will be removed soon.  Use IPython.testing.util instead')
-    
     arg1 = sys.argv[1]
     if arg1 in test_sections:
         section = test_sections[arg1]
@@ -439,4 +431,3 @@ def run_iptest():
 
 if __name__ == '__main__':
     run_iptest()
-

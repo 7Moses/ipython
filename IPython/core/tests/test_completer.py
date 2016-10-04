@@ -36,32 +36,38 @@ def greedy_completion():
         ip.Completer.greedy = greedy_original
 
 def test_protect_filename():
-    pairs = [ ('abc','abc'),
-              (' abc',r'\ abc'),
-              ('a bc',r'a\ bc'),
-              ('a  bc',r'a\ \ bc'),
-              ('  bc',r'\ \ bc'),
-              ]
-    # On posix, we also protect parens and other special characters
-    if sys.platform != 'win32':
-        pairs.extend( [('a(bc',r'a\(bc'),
-                       ('a)bc',r'a\)bc'),
-                       ('a( )bc',r'a\(\ \)bc'),
-                       ('a[1]bc', r'a\[1\]bc'),
-                       ('a{1}bc', r'a\{1\}bc'),
-                       ('a#bc', r'a\#bc'),
-                       ('a?bc', r'a\?bc'),
-                       ('a=bc', r'a\=bc'),
-                       ('a\\bc', r'a\\bc'),
-                       ('a|bc', r'a\|bc'),
-                       ('a;bc', r'a\;bc'),
-                       ('a:bc', r'a\:bc'),
-                       ("a'bc", r"a\'bc"),
-                       ('a*bc', r'a\*bc'),
-                       ('a"bc', r'a\"bc'),
-                       ('a^bc', r'a\^bc'),
-                       ('a&bc', r'a\&bc'),
-                       ] )
+    if sys.platform == 'win32':
+        pairs = [('abc','abc'),
+                 (' abc','" abc"'),
+                 ('a bc','"a bc"'),
+                 ('a  bc','"a  bc"'),
+                 ('  bc','"  bc"'),
+                 ]
+    else:
+        pairs = [('abc','abc'),
+                 (' abc',r'\ abc'),
+                 ('a bc',r'a\ bc'),
+                 ('a  bc',r'a\ \ bc'),
+                 ('  bc',r'\ \ bc'),
+                 # On posix, we also protect parens and other special characters.
+                 ('a(bc',r'a\(bc'),
+                 ('a)bc',r'a\)bc'),
+                 ('a( )bc',r'a\(\ \)bc'),
+                 ('a[1]bc', r'a\[1\]bc'),
+                 ('a{1}bc', r'a\{1\}bc'),
+                 ('a#bc', r'a\#bc'),
+                 ('a?bc', r'a\?bc'),
+                 ('a=bc', r'a\=bc'),
+                 ('a\\bc', r'a\\bc'),
+                 ('a|bc', r'a\|bc'),
+                 ('a;bc', r'a\;bc'),
+                 ('a:bc', r'a\:bc'),
+                 ("a'bc", r"a\'bc"),
+                 ('a*bc', r'a\*bc'),
+                 ('a"bc', r'a\"bc'),
+                 ('a^bc', r'a\^bc'),
+                 ('a&bc', r'a\&bc'),
+                 ]
     # run the actual tests
     for s1, s2 in pairs:
         s1p = completer.protect_filename(s1)
@@ -126,7 +132,6 @@ def test_unicode_completions():
         nt.assert_true(isinstance(text, string_types))
         nt.assert_true(isinstance(matches, list))
 
-@dec.onlyif(sys.version_info[0] >= 3, 'This test only applies in Py>=3')
 def test_latex_completions():
     from IPython.core.latex_symbols import latex_symbols
     import random
@@ -177,11 +182,12 @@ def test_forward_unicode_completion():
     nt.assert_equal(matches[0], 'Ⅴ')
 
 @dec.onlyif(sys.version_info[0] >= 3, 'This test only apply on python3')
+@dec.knownfailureif(sys.platform == 'win32', 'Fails if there is a C:\\j... path')
 def test_no_ascii_back_completion():
     ip = get_ipython()
     with TemporaryWorkingDirectory():  # Avoid any filename completions
         # single ascii letter that don't have yet completions
-        for letter in 'fjqyJMQVWY' :
+        for letter in 'jJ' :
             name, matches = ip.complete('\\'+letter)
             nt.assert_equal(matches, [])
 
@@ -264,19 +270,27 @@ def test_local_file_completions():
         # Now check with a function call
         cmd = 'a = f("%s' % prefix
         c = ip.complete(prefix, cmd)[1]
-        comp = [prefix+s for s in suffixes]
-        nt.assert_equal(c, comp)
+        comp = set(prefix+s for s in suffixes)
+        nt.assert_true(comp.issubset(set(c)))
 
 
 def test_greedy_completions():
     ip = get_ipython()
     ip.ex('a=list(range(5))')
     _,c = ip.complete('.',line='a[0].')
-    nt.assert_false('a[0].real' in c,
+    nt.assert_false('.real' in c,
                     "Shouldn't have completed on a[0]: %s"%c)
     with greedy_completion():
-        _,c = ip.complete('.',line='a[0].')
-        nt.assert_true('a[0].real' in c, "Should have completed on a[0]: %s"%c)
+        def _(line, cursor_pos, expect, message):
+            _,c = ip.complete('.', line=line, cursor_pos=cursor_pos)
+            nt.assert_in(expect, c, message%c)
+
+        yield _, 'a[0].', 5, 'a[0].real', "Should have completed on a[0].: %s"
+        yield _, 'a[0].r', 6, 'a[0].real', "Should have completed on a[0].r: %s"
+        
+        if sys.version_info > (3,4):
+            yield _, 'a[0].from_', 10, 'a[0].from_bytes', "Should have completed on a[0].from_: %s"
+
 
 
 def test_omit__names():
@@ -321,20 +335,6 @@ def test_limit_to__all__False_ok():
     nt.assert_in('d.x', matches)
 
 
-def test_limit_to__all__True_ok():
-    ip = get_ipython()
-    c = ip.Completer
-    ip.ex('class D: x=24')
-    ip.ex('d=D()')
-    ip.ex("d.__all__=['z']")
-    cfg = Config()
-    cfg.IPCompleter.limit_to__all__ = True
-    c.update_config(cfg)
-    s, matches = c.complete('d.')
-    nt.assert_in('d.z', matches)
-    nt.assert_not_in('d.x', matches)
-
-
 def test_get__all__entries_ok():
     class A(object):
         __all__ = ['x', 1]
@@ -366,7 +366,6 @@ def test_func_kw_completions():
 
 
 def test_default_arguments_from_docstring():
-    doc = min.__doc__
     ip = get_ipython()
     c = ip.Completer
     kwd = c._default_arguments_from_docstring(
@@ -645,8 +644,10 @@ def test_dict_key_completion_unicode_py2():
     nt.assert_in("a\\u05d0b", matches)
 
     # query using escape
-    _, matches = complete(line_buffer=u"d[u'a\\u05d0")
-    nt.assert_in("u05d0b", matches)  # tokenized after \\
+    if sys.platform != 'win32':
+        # Known failure on Windows
+        _, matches = complete(line_buffer=u"d[u'a\\u05d0")
+        nt.assert_in("u05d0b", matches)  # tokenized after \\
 
     # query using character
     _, matches = complete(line_buffer=u"d[u'a\u05d0")
@@ -687,8 +688,10 @@ def test_dict_key_completion_unicode_py3():
     ip.user_ns['d'] = {u'a\u05d0': None}
 
     # query using escape
-    _, matches = complete(line_buffer="d['a\\u05d0")
-    nt.assert_in("u05d0", matches)  # tokenized after \\
+    if sys.platform != 'win32':
+        # Known failure on Windows
+        _, matches = complete(line_buffer="d['a\\u05d0")
+        nt.assert_in("u05d0", matches)  # tokenized after \\
 
     # query using character
     _, matches = complete(line_buffer="d['a\u05d0")
@@ -761,11 +764,34 @@ def test_dict_key_completion_invalids():
     _, matches = complete(line_buffer="name_error['")
     _, matches = complete(line_buffer="d['\\")  # incomplete escape
 
+class KeyCompletable(object):
+    def __init__(self, things=()):
+        self.things = things
+
+    def _ipython_key_completions_(self):
+        return list(self.things)
+
+def test_object_key_completion():
+    ip = get_ipython()
+    ip.user_ns['key_completable'] = KeyCompletable(['qwerty', 'qwick'])
+
+    _, matches = ip.Completer.complete(line_buffer="key_completable['qw")
+    nt.assert_in('qwerty', matches)
+    nt.assert_in('qwick', matches)
+
+
 def test_aimport_module_completer():
     ip = get_ipython()
     _, matches = ip.complete('i', '%aimport i')
     nt.assert_in('io', matches)
     nt.assert_not_in('int', matches)
+
+def test_nested_import_module_completer():
+    ip = get_ipython()
+    _, matches = ip.complete(None, 'import IPython.co', 17)
+    nt.assert_in('IPython.core', matches)
+    nt.assert_not_in('import IPython.core', matches)
+    nt.assert_not_in('IPython.display', matches)
 
 def test_import_module_completer():
     ip = get_ipython()
@@ -775,6 +801,6 @@ def test_import_module_completer():
 
 def test_from_module_completer():
     ip = get_ipython()
-    _, matches = ip.complete('B', 'from io import B')
+    _, matches = ip.complete('B', 'from io import B', 16)
     nt.assert_in('BytesIO', matches)
     nt.assert_not_in('BaseException', matches)

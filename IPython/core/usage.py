@@ -76,6 +76,20 @@ improved functionality and flexibility.
 At your system command line, type 'ipython -h' to see the command line
 options available. This document only describes interactive features.
 
+GETTING HELP
+------------
+
+Within IPython you have various way to access help:
+
+  ?         -> Introduction and overview of IPython's features (this screen).
+  object?   -> Details about 'object'.
+  object??  -> More detailed, verbose information about 'object'.
+  %quickref -> Quick reference of all IPython specific syntax and magics.
+  help      -> Access Python's own help system.
+
+If you are in terminal IPython you can quit this screen by pressing `q`.
+
+
 MAIN FEATURES
 -------------
 
@@ -109,12 +123,9 @@ MAIN FEATURES
   variable names, and show you a list of the possible completions if there's
   no unambiguous one. It will also complete filenames in the current directory.
 
-  This feature requires the readline and rlcomplete modules, so it won't work
-  if your Python lacks readline support (such as under Windows).
+* Search previous command history in two ways:
 
-* Search previous command history in two ways (also requires readline):
-
-  - Start typing, and then use Ctrl-p (previous,up) and Ctrl-n (next,down) to
+  - Start typing, and then use Ctrl-p (previous, up) and Ctrl-n (next,down) to
     search through only the history items that match what you've typed so
     far. If you use Ctrl-p/Ctrl-n at a blank prompt, they just behave like
     normal arrow keys.
@@ -123,7 +134,7 @@ MAIN FEATURES
     your history for lines that match what you've typed so far, completing as
     much as it can.
 
-  - %hist: search history by index (this does *not* require readline).
+  - %hist: search history by index.
 
 * Persistent command history across sessions.
 
@@ -255,7 +266,6 @@ MAIN FEATURES
 interactive_usage_min =  """\
 An enhanced console for Python.
 Some of its features are:
-- Readline support if the readline library is present.
 - Tab completion in the local namespace.
 - Logging of input, see command-line options.
 - System shell escape via ! , eg !ls.
@@ -329,28 +339,16 @@ The following magic functions are currently available:
 
 """
 
-quick_guide = """\
-?         -> Introduction and overview of IPython's features.
-%quickref -> Quick reference.
-help      -> Python's own help system.
-object?   -> Details about 'object', use 'object??' for extra details.
-"""
-
-gui_note = """\
-%guiref   -> A brief reference about the graphical user interface.
-"""
-
-default_banner_parts = [
-    'Python %s\n' % (sys.version.split('\n')[0],),
-    'Type "copyright", "credits" or "license" for more information.\n\n',
-    'IPython {version} -- An enhanced Interactive Python.\n'.format(
-        version=release.version,
-        ),
-    quick_guide
+default_banner_parts = ["Python %s\n"%sys.version.split("\n")[0],
+    "Type 'copyright', 'credits' or 'license' for more information\n" ,
+    "IPython {version} -- An enhanced Interactive Python. Type '?' for help.\n".format(version=release.version),
 ]
-
-default_gui_banner_parts = default_banner_parts + [gui_note]
 
 default_banner = ''.join(default_banner_parts)
 
-default_gui_banner = ''.join(default_gui_banner_parts)
+# deprecated GUI banner
+
+default_gui_banner = '\n'.join([
+    'DEPRECATED: IPython.core.usage.default_gui_banner is deprecated and will be removed',
+    default_banner,
+])

@@ -18,11 +18,10 @@ archive = '%s:%s' % (archive_user, archive_dir)
 
 # Build commands
 # Source dists
-sdists = './setup.py sdist --formats=gztar,zip'
+sdists = './setup.py sdist --formats=gztar'
 # Binary dists
 def buildwheels():
-    for py in ('2', '3'):
-        sh('python%s setupegg.py bdist_wheel' % py)
+    sh('python3 setupegg.py bdist_wheel' % py)
 
 # Utility functions
 def sh(cmd):

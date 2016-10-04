@@ -39,6 +39,8 @@ else:
     from StringIO import StringIO
 
 
+_ip = get_ipython()
+
 @magic.magics_class
 class DummyMagics(magic.Magics): pass
 
@@ -89,7 +91,6 @@ def test_config():
 
 def test_rehashx():
     # clear up everything
-    _ip = get_ipython()
     _ip.alias_manager.clear_aliases()
     del _ip.db['syscmdlist']
     
@@ -625,7 +626,6 @@ def test_extension():
         sys.path.remove(daft_path)
 
 
-@dec.skip_without('nbformat')
 def test_notebook_export_json():
     _ip = get_ipython()
     _ip.history_manager.reset()   # Clear any existing history.
@@ -1000,3 +1000,12 @@ def test_ls_magic():
         j = json_formatter(lsmagic)
     nt.assert_equal(sorted(j), ['cell', 'line'])
     nt.assert_equal(w, []) # no warnings
+
+def test_strip_initial_indent():
+    def sii(s):
+        lines = s.splitlines()
+        return '\n'.join(code.strip_initial_indent(lines))
+
+    nt.assert_equal(sii("  a = 1\nb = 2"), "a = 1\nb = 2")
+    nt.assert_equal(sii("  a\n    b\nc"), "a\n  b\nc")
+    nt.assert_equal(sii("a\n  b"), "a\n  b")

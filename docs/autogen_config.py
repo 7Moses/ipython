@@ -7,23 +7,22 @@ from ipykernel.kernelapp import IPKernelApp
 
 here = abspath(dirname(__file__))
 options = join(here, 'source', 'config', 'options')
-generated = join(options, 'generated.rst')
+generated = join(options, 'config-generated.txt')
+
 
 def write_doc(name, title, app, preamble=None):
-    filename = '%s.rst' % name
-    with open(join(options, filename), 'w') as f:
+    filename = join(options, name+'.rst')
+    with open(filename, 'w') as f:
         f.write(title + '\n')
         f.write(('=' * len(title)) + '\n')
         f.write('\n')
         if preamble is not None:
             f.write(preamble + '\n\n')
         f.write(app.document_config_options())
-    with open(generated, 'a') as f:
-        f.write(filename + '\n')
 
 
 if __name__ == '__main__':
-    # create empty file
+    # Touch this file for the make target
     with open(generated, 'w'):
         pass
 
@@ -32,4 +31,3 @@ if __name__ == '__main__':
         preamble=("These options can be used in :file:`ipython_kernel_config.py`. "
                   "The kernel also respects any options in `ipython_config.py`"),
     )
-

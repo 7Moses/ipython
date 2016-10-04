@@ -48,7 +48,7 @@ from .ipunittest import ipdoctest, ipdocstring
 from IPython.external.decorators import *
 
 # For onlyif_cmd_exists decorator
-from IPython.utils.py3compat import string_types, which, PY2, PY3
+from IPython.utils.py3compat import string_types, which, PY2, PY3, PYPY
 
 #-----------------------------------------------------------------------------
 # Classes and functions

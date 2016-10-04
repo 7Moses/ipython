@@ -26,9 +26,18 @@ import sys
 
 # This check is also made in IPython/__init__, don't forget to update both when
 # changing Python version requirements.
-v = sys.version_info
-if v[:2] < (2,7) or (v[0] >= 3 and v[:2] < (3,3)):
-    error = "ERROR: IPython requires Python version 2.7 or 3.3 or above."
+if sys.version_info < (3,3):
+    error = """
+IPython 6.0+ does not support Python 2.6, 2.7, 3.0, 3.1, or 3.2.
+When using Python 2.7, please install IPython 5.x LTS Long Term Support version.
+Beginning with IPython 6.0, Python 3.3 and above is required.
+
+See IPython `README.rst` file for more information:
+
+    https://github.com/ipython/ipython/blob/master/README.rst
+
+"""
+
     print(error, file=sys.stderr)
     sys.exit(1)
 
@@ -182,19 +191,22 @@ extras_require = dict(
     parallel = ['ipyparallel'],
     qtconsole = ['qtconsole'],
     doc = ['Sphinx>=1.3'],
-    test = ['nose>=0.10.1', 'requests', 'testpath', 'pygments'],
+    test = ['nose>=0.10.1', 'requests', 'testpath', 'pygments', 'nbformat', 'ipykernel', 'numpy'],
     terminal = [],
     kernel = ['ipykernel'],
     nbformat = ['nbformat'],
     notebook = ['notebook', 'ipywidgets'],
     nbconvert = ['nbconvert'],
 )
+
 install_requires = [
     'setuptools>=18.5',
     'decorator',
     'pickleshare',
     'simplegeneric>0.8',
-    'traitlets',
+    'traitlets>=4.2',
+    'prompt_toolkit>=1.0.3,<2.0.0',
+    'pygments',
 ]
 
 # Platform-specific dependencies:
@@ -202,10 +214,12 @@ install_requires = [
 # but requires pip >= 6. pip < 6 ignores these.
 
 extras_require.update({
+    ':python_version == "2.7"': ['backports.shutil_get_terminal_size'],
+    ':python_version == "2.7" or python_version == "3.3"': ['pathlib2'],
     ':sys_platform != "win32"': ['pexpect'],
     ':sys_platform == "darwin"': ['appnope'],
-    ':sys_platform == "darwin" and platform_python_implementation == "CPython"': ['gnureadline'],
-    'terminal:sys_platform == "win32"': ['pyreadline>=2'],
+    ':sys_platform == "win32"': ['colorama'],
+    ':sys_platform == "win32" and python_version < "3.6"': ['win_unicode_console>=0.5'],
     'test:python_version == "2.7"': ['mock'],
 })
 # FIXME: re-specify above platform dependencies for pip < 6
@@ -216,22 +230,10 @@ if not any(arg.startswith('bdist') for arg in sys.argv):
 
     if sys.platform == 'darwin':
         install_requires.extend(['appnope'])
-        have_readline = False
-        try:
-            import readline
-        except ImportError:
-            pass
-        else:
-            if 'libedit' not in readline.__doc__:
-                have_readline = True
-        if not have_readline:
-            install_requires.extend(['gnureadline'])
 
-    if sys.platform.startswith('win'):
-        extras_require['terminal'].append('pyreadline>=2.0')
-    else:
+    if not sys.platform.startswith('win'):
         install_requires.append('pexpect')
-    
+
     # workaround pypa/setuptools#147, where setuptools misspells
     # platform_python_implementation as python_implementation
     if 'setuptools' in sys.modules:
@@ -247,6 +249,7 @@ for key, deps in extras_require.items():
 extras_require['all'] = everything
 
 if 'setuptools' in sys.modules:
+    setuptools_extra_args['python_requires'] = '>=3.3'
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
         'console_scripts': find_entry_points(),

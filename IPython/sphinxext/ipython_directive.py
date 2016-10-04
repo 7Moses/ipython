@@ -294,14 +294,13 @@ class EmbeddedSphinxShell(object):
         IP = InteractiveShell.instance(config=config, profile_dir=profile)
         atexit.register(self.cleanup)
 
-        # io.stdout redirect must be done after instantiating InteractiveShell
-        io.stdout = self.cout
-        io.stderr = self.cout
+        sys.stdout = self.cout
+        sys.stderr = self.cout
 
         # For debugging, so we can see normal output, use this:
         #from IPython.utils.io import Tee
-        #io.stdout = Tee(self.cout, channel='stdout') # dbg
-        #io.stderr = Tee(self.cout, channel='stderr') # dbg
+        #sys.stdout = Tee(self.cout, channel='stdout') # dbg
+        #sys.stderr = Tee(self.cout, channel='stderr') # dbg
 
         # Store a few parts of IPython we'll need.
         self.IP = IP
@@ -881,10 +880,8 @@ class IPythonDirective(Directive):
             # EmbeddedSphinxShell is created, its interactive shell member
             # is the same for each instance.
 
-            if mplbackend:
+            if mplbackend and 'matplotlib.backends' not in sys.modules:
                 import matplotlib
-                # Repeated calls to use() will not hurt us since `mplbackend`
-                # is the same each time.
                 matplotlib.use(mplbackend)
 
             # Must be called after (potentially) importing matplotlib and
@@ -900,7 +897,6 @@ class IPythonDirective(Directive):
         if not self.state.document.current_source in self.seen_docs:
             self.shell.IP.history_manager.reset()
             self.shell.IP.execution_count = 1
-            self.shell.IP.prompt_manager.width = 0
             self.seen_docs.add(self.state.document.current_source)
 
         # and attach to shell so we don't have to pass them around

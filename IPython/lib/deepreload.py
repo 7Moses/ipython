@@ -341,21 +341,3 @@ def reload(module, exclude=('sys', 'os.path', builtin_mod_name, '__main__')):
             return deep_reload_hook(module)
     finally:
         found_now = {}
-
-
-def _dreload(module, **kwargs):
-    """
-    **deprecated**
-
-    import reload explicitly from `IPython.lib.deepreload` to use it
-
-    """
-    warn("""
-injecting `dreload` in interactive namespace is deprecated, and will be removed in IPython 5.0. 
-Please import `reload` explicitly from `IPython.lib.deepreload`.
-""", DeprecationWarning, stacklevel=2)
-    reload(module, **kwargs)
-
-# Uncomment the following to automatically activate deep reloading whenever
-# this module is imported
-#builtin_mod.reload = reload

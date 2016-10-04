@@ -23,6 +23,7 @@ backends = {'tk': 'TkAgg',
             'osx': 'MacOSX',
             'nbagg': 'nbAgg',
             'notebook': 'nbAgg',
+            'agg': 'agg',
             'inline' : 'module://ipykernel.pylab.backend_inline'}
 
 # We also need a reverse backends2guis mapping that will properly choose which
@@ -38,6 +39,10 @@ backend2gui['GTK'] = backend2gui['GTKCairo'] = 'gtk'
 backend2gui['GTK3Cairo'] = 'gtk3'
 backend2gui['WX'] = 'wx'
 backend2gui['CocoaAgg'] = 'osx'
+# And some backends that don't need GUI integration
+del backend2gui['nbAgg']
+del backend2gui['agg']
+del backend2gui['module://ipykernel.pylab.backend_inline']
 
 #-----------------------------------------------------------------------------
 # Matplotlib utilities
@@ -97,7 +102,7 @@ def print_figure(fig, fmt='png', bbox_inches='tight', **kwargs):
     if not fig.axes and not fig.lines:
         return
 
-    dpi = rcParams['savefig.dpi']
+    dpi = fig.dpi
     if fmt == 'retina':
         dpi = dpi * 2
         fmt = 'png'
@@ -197,7 +202,6 @@ def select_figure_formats(shell, formats, **kwargs):
     """
     import matplotlib
     from matplotlib.figure import Figure
-    from ipykernel.pylab import backend_inline
 
     svg_formatter = shell.display_formatter.formatters['image/svg+xml']
     png_formatter = shell.display_formatter.formatters['image/png']
@@ -211,7 +215,7 @@ def select_figure_formats(shell, formats, **kwargs):
 
     [ f.pop(Figure, None) for f in shell.display_formatter.formatters.values() ]
 
-    if matplotlib.backends.backend.lower() == 'nbagg':
+    if matplotlib.get_backend().lower() == 'nbagg':
         formatter = shell.display_formatter.ipython_display_formatter
         formatter.for_type(Figure, _reshow_nbagg_figure)
 
@@ -244,7 +248,7 @@ def find_gui_and_backend(gui=None, gui_select=None):
     Parameters
     ----------
     gui : str
-        Can be one of ('tk','gtk','wx','qt','qt4','inline').
+        Can be one of ('tk','gtk','wx','qt','qt4','inline','agg').
     gui_select : str
         Can be one of ('tk','gtk','wx','qt','qt4','inline').
         This is any gui already selected by the shell.
@@ -252,7 +256,7 @@ def find_gui_and_backend(gui=None, gui_select=None):
     Returns
     -------
     A tuple of (gui, backend) where backend is one of ('TkAgg','GTKAgg',
-    'WXAgg','Qt4Agg','module://ipykernel.pylab.backend_inline').
+    'WXAgg','Qt4Agg','module://ipykernel.pylab.backend_inline','agg').
     """
 
     import matplotlib
@@ -260,6 +264,8 @@ def find_gui_and_backend(gui=None, gui_select=None):
     if gui and gui != 'auto':
         # select backend based on requested gui
         backend = backends[gui]
+        if gui == 'agg':
+            gui = None
     else:
         # We need to read the backend from the original data structure, *not*
         # from mpl.rcParams, since a prior invocation of %matplotlib may have
@@ -356,7 +362,7 @@ def configure_inline_support(shell, backend):
         from ipykernel.pylab.backend_inline import InlineBackend
     except ImportError:
         return
-    from matplotlib import pyplot
+    import matplotlib
 
     cfg = InlineBackend.instance(parent=shell)
     cfg.shell = shell
@@ -370,9 +376,9 @@ def configure_inline_support(shell, backend):
         # Save rcParams that will be overwrittern
         shell._saved_rcParams = dict()
         for k in cfg.rc:
-            shell._saved_rcParams[k] = pyplot.rcParams[k]
+            shell._saved_rcParams[k] = matplotlib.rcParams[k]
         # load inline_rc
-        pyplot.rcParams.update(cfg.rc)
+        matplotlib.rcParams.update(cfg.rc)
         new_backend_name = "inline"
     else:
         from ipykernel.pylab.backend_inline import flush_figures
@@ -381,7 +387,7 @@ def configure_inline_support(shell, backend):
         except ValueError:
             pass
         if hasattr(shell, '_saved_rcParams'):
-            pyplot.rcParams.update(shell._saved_rcParams)
+            matplotlib.rcParams.update(shell._saved_rcParams)
             del shell._saved_rcParams
         new_backend_name = "other"
 

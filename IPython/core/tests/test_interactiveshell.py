@@ -196,33 +196,19 @@ class InteractiveShellTestCase(unittest.TestCase):
 
     def test_bad_custom_tb(self):
         """Check that InteractiveShell is protected from bad custom exception handlers"""
-        from IPython.utils import io
-        save_stderr = io.stderr
-        try:
-            # capture stderr
-            io.stderr = StringIO()
-            ip.set_custom_exc((IOError,), lambda etype,value,tb: 1/0)
-            self.assertEqual(ip.custom_exceptions, (IOError,))
+        ip.set_custom_exc((IOError,), lambda etype,value,tb: 1/0)
+        self.assertEqual(ip.custom_exceptions, (IOError,))
+        with tt.AssertPrints("Custom TB Handler failed", channel='stderr'):
             ip.run_cell(u'raise IOError("foo")')
-            self.assertEqual(ip.custom_exceptions, ())
-            self.assertTrue("Custom TB Handler failed" in io.stderr.getvalue())
-        finally:
-            io.stderr = save_stderr
+        self.assertEqual(ip.custom_exceptions, ())
 
     def test_bad_custom_tb_return(self):
         """Check that InteractiveShell is protected from bad return types in custom exception handlers"""
-        from IPython.utils import io
-        save_stderr = io.stderr
-        try:
-            # capture stderr
-            io.stderr = StringIO()
-            ip.set_custom_exc((NameError,),lambda etype,value,tb, tb_offset=None: 1)
-            self.assertEqual(ip.custom_exceptions, (NameError,))
+        ip.set_custom_exc((NameError,),lambda etype,value,tb, tb_offset=None: 1)
+        self.assertEqual(ip.custom_exceptions, (NameError,))
+        with tt.AssertPrints("Custom TB Handler failed", channel='stderr'):
             ip.run_cell(u'a=abracadabra')
-            self.assertEqual(ip.custom_exceptions, ())
-            self.assertTrue("Custom TB Handler failed" in io.stderr.getvalue())
-        finally:
-            io.stderr = save_stderr
+        self.assertEqual(ip.custom_exceptions, ())
 
     def test_drop_by_id(self):
         myvars = {"a":object(), "b":object(), "c": object()}
@@ -448,6 +434,21 @@ class InteractiveShellTestCase(unittest.TestCase):
         found = ip._ofind('a.foo', [('locals', locals())])
         nt.assert_is(found['obj'], A.foo)
 
+    def test_custom_syntaxerror_exception(self):
+        called = []
+        def my_handler(shell, etype, value, tb, tb_offset=None):
+            called.append(etype)
+            shell.showtraceback((etype, value, tb), tb_offset=tb_offset)
+
+        ip.set_custom_exc((SyntaxError,), my_handler)
+        try:
+            ip.run_cell("1f")
+            # Check that this was called, and only once.
+            self.assertEqual(called, [SyntaxError])
+        finally:
+            # Reset the custom exception hook
+            ip.set_custom_exc((), None)
+
     def test_custom_exception(self):
         called = []
         def my_handler(shell, etype, value, tb, tb_offset=None):
@@ -512,6 +513,12 @@ class InteractiveShellTestCase(unittest.TestCase):
             self.assertEqual(msg, 'DerivedInterrupt: foo\n')
         else:
             self.assertEqual(msg, 'IPython.core.tests.test_interactiveshell.DerivedInterrupt: foo\n')
+
+    def test_inspect_text(self):
+        ip.run_cell('a = 5')
+        text = ip.object_inspect_text('a')
+        self.assertIsInstance(text, unicode_type)
+
 
 class TestSafeExecfileNonAsciiPath(unittest.TestCase):
 

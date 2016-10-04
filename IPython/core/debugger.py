@@ -30,42 +30,41 @@ import bdb
 import functools
 import inspect
 import sys
+import warnings
 
 from IPython import get_ipython
 from IPython.utils import PyColorize, ulinecache
-from IPython.utils import coloransi, io, py3compat
+from IPython.utils import coloransi, py3compat
 from IPython.core.excolors import exception_colors
 from IPython.testing.skipdoctest import skip_doctest
 
-# See if we can use pydb.
-has_pydb = False
-prompt = 'ipdb> '
-#We have to check this directly from sys.argv, config struct not yet available
-if '--pydb' in sys.argv:
-    try:
-        import pydb
-        if hasattr(pydb.pydb, "runl") and pydb.version>'1.17':
-            # Version 1.17 is broken, and that's what ships with Ubuntu Edgy, so we
-            # better protect against it.
-            has_pydb = True
-    except ImportError:
-        print("Pydb (http://bashdb.sourceforge.net/pydb/) does not seem to be available")
 
-if has_pydb:
-    from pydb import Pdb as OldPdb
-    prompt = 'ipydb> '
-else:
-    from pdb import Pdb as OldPdb
+prompt = 'ipdb> '
+
+#We have to check this directly from sys.argv, config struct not yet available
+from pdb import Pdb as OldPdb
 
 # Allow the set_trace code to operate outside of an ipython instance, even if
 # it does so with some limitations.  The rest of this support is implemented in
 # the Tracer constructor.
+
+def make_arrow(pad):
+    """generate the leading arrow in front of traceback or debugger"""
+    if pad >= 2:
+        return '-'*(pad-2) + '> '
+    elif pad == 1:
+        return '>'
+    return ''
+
+
 def BdbQuit_excepthook(et, ev, tb, excepthook=None):
     """Exception hook which handles `BdbQuit` exceptions.
 
     All other exceptions are processed using the `excepthook`
     parameter.
     """
+    warnings.warn("`BdbQuit_excepthook` is deprecated since version 5.1",
+                  DeprecationWarning)
     if et==bdb.BdbQuit:
         print('Exiting Debugger.')
     elif excepthook is not None:
@@ -74,12 +73,19 @@ def BdbQuit_excepthook(et, ev, tb, excepthook=None):
         # Backwards compatibility. Raise deprecation warning?
         BdbQuit_excepthook.excepthook_ori(et,ev,tb)
 
+
 def BdbQuit_IPython_excepthook(self,et,ev,tb,tb_offset=None):
+    warnings.warn(
+        "`BdbQuit_IPython_excepthook` is deprecated since version 5.1",
+        DeprecationWarning)
     print('Exiting Debugger.')
 
 
 class Tracer(object):
-    """Class for local debugging, similar to pdb.set_trace.
+    """
+    DEPRECATED
+
+    Class for local debugging, similar to pdb.set_trace.
 
     Instances of this class, when called, behave like pdb.set_trace, but
     providing IPython's enhanced capabilities.
@@ -93,7 +99,10 @@ class Tracer(object):
 
     @skip_doctest
     def __init__(self, colors=None):
-        """Create a local debugger instance.
+        """
+        DEPRECATED
+
+        Create a local debugger instance.
 
         Parameters
         ----------
@@ -118,6 +127,9 @@ class Tracer(object):
         step through code, set breakpoints, etc.  See the pdb documentation
         from the Python standard library for usage details.
         """
+        warnings.warn("`Tracer` is deprecated since version 5.1, directly use "
+                      "`IPython.core.debugger.Pdb.set_trace()`",
+                      DeprecationWarning)
 
         ip = get_ipython()
         if ip is None:
@@ -125,12 +137,6 @@ class Tracer(object):
             sys.excepthook = functools.partial(BdbQuit_excepthook,
                                                excepthook=sys.excepthook)
             def_colors = 'NoColor'
-            try:
-                # Limited tab completion support
-                import readline
-                readline.parse_and_bind('tab: complete')
-            except ImportError:
-                pass
         else:
             # In ipython, we use its custom exception handler mechanism
             def_colors = ip.colors
@@ -196,55 +202,46 @@ def _file_lines(fname):
         return out
 
 
-class Pdb(OldPdb):
-    """Modified Pdb class, does not load readline."""
+class Pdb(OldPdb, object):
+    """Modified Pdb class, does not load readline.
 
-    def __init__(self,color_scheme='NoColor',completekey=None,
+    for a standalone version that uses prompt_toolkit, see
+    `IPython.terminal.debugger.TerminalPdb` and
+    `IPython.terminal.debugger.set_trace()`
+    """
+
+    def __init__(self, color_scheme=None, completekey=None,
                  stdin=None, stdout=None, context=5):
 
         # Parent constructor:
         try:
-            self.context=int(context)
+            self.context = int(context)
             if self.context <= 0:
                 raise ValueError("Context must be a positive integer")
         except (TypeError, ValueError):
                 raise ValueError("Context must be a positive integer")
 
-        if has_pydb and completekey is None:
-            OldPdb.__init__(self,stdin=stdin,stdout=io.stdout)
-        else:
-            OldPdb.__init__(self,completekey,stdin,stdout)
+        OldPdb.__init__(self, completekey, stdin, stdout)
 
         # IPython changes...
-        self.is_pydb = has_pydb
-
         self.shell = get_ipython()
 
         if self.shell is None:
+            save_main = sys.modules['__main__']
             # No IPython instance running, we must create one
             from IPython.terminal.interactiveshell import \
                 TerminalInteractiveShell
             self.shell = TerminalInteractiveShell.instance()
+            # needed by any code which calls __import__("__main__") after
+            # the debugger was entered. See also #9941.
+            sys.modules['__main__'] = save_main 
 
-        if self.is_pydb:
-
-            # interactiveshell.py's ipalias seems to want pdb's checkline
-            # which located in pydb.fn
-            import pydb.fns
-            self.checkline = lambda filename, lineno: \
-                             pydb.fns.checkline(self, filename, lineno)
-
-            self.curframe = None
-            self.do_restart = self.new_do_restart
-
-            self.old_all_completions = self.shell.Completer.all_completions
-            self.shell.Completer.all_completions=self.all_completions
-
-            self.do_list = decorate_fn_with_doc(self.list_command_pydb,
-                                                OldPdb.do_list)
-            self.do_l     = self.do_list
-            self.do_frame = decorate_fn_with_doc(self.new_do_frame,
-                                                 OldPdb.do_frame)
+        if color_scheme is not None:
+            warnings.warn(
+                "The `color_scheme` argument is deprecated since version 5.1",
+                DeprecationWarning, stacklevel=2)
+        else:
+            color_scheme = self.shell.colors
 
         self.aliases = {}
 
@@ -268,48 +265,66 @@ class Pdb(OldPdb):
         cst['LightBG'].colors.breakpoint_enabled = C.LightRed
         cst['LightBG'].colors.breakpoint_disabled = C.Red
 
-        self.set_colors(color_scheme)
+        cst['Neutral'].colors.prompt = C.Blue
+        cst['Neutral'].colors.breakpoint_enabled = C.LightRed
+        cst['Neutral'].colors.breakpoint_disabled = C.Red
+
 
         # Add a python parser so we can syntax highlight source while
         # debugging.
-        self.parser = PyColorize.Parser()
+        self.parser = PyColorize.Parser(style=color_scheme)
+        self.set_colors(color_scheme)
 
-        # Set the prompt
-        Colors = cst.active_colors
-        self.prompt = u'%s%s%s' % (Colors.prompt, prompt, Colors.Normal) # The default prompt is '(Pdb)'
+        # Set the prompt - the default prompt is '(Pdb)'
+        self.prompt = prompt
 
     def set_colors(self, scheme):
         """Shorthand access to the color table scheme selector method."""
         self.color_scheme_table.set_active_scheme(scheme)
+        self.parser.style = scheme
+
+    def trace_dispatch(self, frame, event, arg):
+        try:
+            return super(Pdb, self).trace_dispatch(frame, event, arg)
+        except bdb.BdbQuit:
+            pass
 
     def interaction(self, frame, traceback):
-        self.shell.set_completer_frame(frame)
-        while True:
-            try:
-                OldPdb.interaction(self, frame, traceback)
-                break
-            except KeyboardInterrupt:
-                self.shell.write('\n' + self.shell.get_exception_only())
-                break
-            finally:
-                # Pdb sets readline delimiters, so set them back to our own
-                if self.shell.readline is not None:
-                    self.shell.readline.set_completer_delims(self.shell.readline_delims)
+        try:
+            OldPdb.interaction(self, frame, traceback)
+        except KeyboardInterrupt:
+            sys.stdout.write('\n' + self.shell.get_exception_only())
+
+    def parseline(self, line):
+        if line.startswith("!!"):
+            # Force standard behavior.
+            return super(Pdb, self).parseline(line[2:])
+        # "Smart command mode" from pdb++: don't execute commands if a variable
+        # with the same name exists.
+        cmd, arg, newline = super(Pdb, self).parseline(line)
+        # Fix for #9611: Do not trigger smart command if the command is `exit`
+        # or `quit` and it would resolve to their *global* value (the
+        # `ExitAutocall` object).  Just checking that it is not present in the
+        # locals dict is not enough as locals and globals match at the
+        # toplevel.
+        if ((cmd in self.curframe.f_locals or cmd in self.curframe.f_globals)
+                and not (cmd in ["exit", "quit"]
+                         and (self.curframe.f_locals is self.curframe.f_globals
+                              or cmd not in self.curframe.f_locals))):
+            return super(Pdb, self).parseline("!" + line)
+        return super(Pdb, self).parseline(line)
 
     def new_do_up(self, arg):
         OldPdb.do_up(self, arg)
-        self.shell.set_completer_frame(self.curframe)
     do_u = do_up = decorate_fn_with_doc(new_do_up, OldPdb.do_up)
 
     def new_do_down(self, arg):
         OldPdb.do_down(self, arg)
-        self.shell.set_completer_frame(self.curframe)
 
     do_d = do_down = decorate_fn_with_doc(new_do_down, OldPdb.do_down)
 
     def new_do_frame(self, arg):
         OldPdb.do_frame(self, arg)
-        self.shell.set_completer_frame(self.curframe)
 
     def new_do_quit(self, arg):
 
@@ -326,9 +341,6 @@ class Pdb(OldPdb):
         self.msg("Restart doesn't make sense here. Using 'quit' instead.")
         return self.do_quit(arg)
 
-    def postloop(self):
-        self.shell.set_completer_frame(None)
-
     def print_stack_trace(self, context=None):
         if context is None:
             context = self.context
@@ -344,7 +356,7 @@ class Pdb(OldPdb):
         except KeyboardInterrupt:
             pass
 
-    def print_stack_entry(self,frame_lineno,prompt_prefix='\n-> ',
+    def print_stack_entry(self,frame_lineno, prompt_prefix='\n-> ',
                           context=None):
         if context is None:
             context = self.context
@@ -354,7 +366,7 @@ class Pdb(OldPdb):
                 raise ValueError("Context must be a positive integer")
         except (TypeError, ValueError):
                 raise ValueError("Context must be a positive integer")
-        print(self.format_stack_entry(frame_lineno, '', context), file=io.stdout)
+        print(self.format_stack_entry(frame_lineno, '', context))
 
         # vds: >>
         frame, lineno = frame_lineno
@@ -440,9 +452,9 @@ class Pdb(OldPdb):
         bp_mark = ""
         bp_mark_color = ""
 
-        scheme = self.color_scheme_table.active_scheme_name
-        new_line, err = self.parser.format2(line, 'str', scheme)
-        if not err: line = new_line
+        new_line, err = self.parser.format2(line, 'str')
+        if not err:
+            line = new_line
 
         bp = None
         if lineno in self.get_file_breaks(filename):
@@ -460,27 +472,12 @@ class Pdb(OldPdb):
         if arrow:
             # This is the line with the error
             pad = numbers_width - len(str(lineno)) - len(bp_mark)
-            if pad >= 3:
-                marker = '-'*(pad-3) + '-> '
-            elif pad == 2:
-                 marker = '> '
-            elif pad == 1:
-                 marker = '>'
-            else:
-                 marker = ''
-            num = '%s%s' % (marker, str(lineno))
-            line = tpl_line % (bp_mark_color + bp_mark, num, line)
+            num = '%s%s' % (make_arrow(pad), str(lineno))
         else:
             num = '%*s' % (numbers_width - len(bp_mark), str(lineno))
-            line = tpl_line % (bp_mark_color + bp_mark, num, line)
 
-        return line
+        return tpl_line % (bp_mark_color + bp_mark, num, line)
 
-    def list_command_pydb(self, arg):
-        """List command to use if we have a newer pydb installed"""
-        filename, first, last = OldPdb.parse_list_cmd(self, arg)
-        if filename is not None:
-            self.print_list_lines(filename, first, last)
 
     def print_list_lines(self, filename, first, last):
         """The printing (as opposed to the parsing part of a 'list'
@@ -507,7 +504,7 @@ class Pdb(OldPdb):
                 src.append(line)
                 self.lineno = lineno
 
-            print(''.join(src), file=io.stdout)
+            print(''.join(src))
 
         except KeyboardInterrupt:
             pass
@@ -557,7 +554,6 @@ class Pdb(OldPdb):
 
     def do_longlist(self, arg):
         self.lastcmd = 'longlist'
-        filename = self.curframe.f_code.co_filename
         try:
             lines, lineno = self.getsourcelines(self.curframe)
         except OSError as err:
@@ -630,3 +626,12 @@ class Pdb(OldPdb):
                 self.print_stack_trace()
 
         do_w = do_where
+
+
+def set_trace(frame=None):
+    """
+    Start debugging from `frame`.
+
+    If frame is not specified, debugging starts from caller's frame.
+    """
+    Pdb().set_trace(frame or sys._getframe().f_back)

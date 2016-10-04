@@ -19,7 +19,6 @@ import os
 from os.path import join as pjoin
 import random
 import sys
-import tempfile
 import textwrap
 import unittest
 
@@ -205,18 +204,11 @@ class TestMagicRunPass(tt.TempFileMixin):
         _ip = get_ipython()
         self.run_tmpfile()
         nt.assert_equal(type(_ip.user_ns['__builtins__']),type(sys))
-
-    def test_prompts(self):
-        """Test that prompts correctly generate after %run"""
-        self.run_tmpfile()
-        _ip = get_ipython()
-        p2 = _ip.prompt_manager.render('in2').strip()
-        nt.assert_equal(p2[:3], '...')
         
     def test_run_profile( self ):
         """Test that the option -p, which invokes the profiler, do not
         crash by invoking execfile"""
-        _ip = get_ipython()
+        get_ipython()
         self.run_tmpfile_p()
 
 
@@ -254,22 +246,22 @@ class TestMagicRunSimple(tt.TempFileMixin):
 
         Returning from another run magic deletes the namespace"""
         # see ticket https://github.com/ipython/ipython/issues/238
-        class secondtmp(tt.TempFileMixin): pass
-        empty = secondtmp()
-        empty.mktmp('')
-        # On Windows, the filename will have \users in it, so we need to use the
-        # repr so that the \u becomes \\u.
-        src = ("ip = get_ipython()\n"
-               "for i in range(5):\n"
-               "   try:\n"
-               "       ip.magic(%r)\n"
-               "   except NameError as e:\n"
-               "       print(i)\n"
-               "       break\n" % ('run ' + empty.fname))
-        self.mktmp(src)
-        _ip.magic('run %s' % self.fname)
-        _ip.run_cell('ip == get_ipython()')
-        nt.assert_equal(_ip.user_ns['i'], 4)
+        
+        with tt.TempFileMixin() as empty:
+            empty.mktmp('')
+            # On Windows, the filename will have \users in it, so we need to use the
+            # repr so that the \u becomes \\u.
+            src = ("ip = get_ipython()\n"
+                   "for i in range(5):\n"
+                   "   try:\n"
+                   "       ip.magic(%r)\n"
+                   "   except NameError as e:\n"
+                   "       print(i)\n"
+                   "       break\n" % ('run ' + empty.fname))
+            self.mktmp(src)
+            _ip.magic('run %s' % self.fname)
+            _ip.run_cell('ip == get_ipython()')
+            nt.assert_equal(_ip.user_ns['i'], 4)
     
     def test_run_second(self):
         """Test that running a second file doesn't clobber the first, gh-3547
@@ -278,12 +270,12 @@ class TestMagicRunSimple(tt.TempFileMixin):
                    "def afunc():\n"
                    "  return avar\n")
 
-        empty = tt.TempFileMixin()
-        empty.mktmp("")
-        
-        _ip.magic('run %s' % self.fname)
-        _ip.magic('run %s' % empty.fname)
-        nt.assert_equal(_ip.user_ns['afunc'](), 1)
+        with tt.TempFileMixin() as empty:
+            empty.mktmp("")
+            
+            _ip.magic('run %s' % self.fname)
+            _ip.magic('run %s' % empty.fname)
+            nt.assert_equal(_ip.user_ns['afunc'](), 1)
 
     @dec.skip_win32
     def test_tclass(self):
@@ -375,7 +367,6 @@ tclass.py: deleting object: C-third
         with tt.AssertNotPrints('SystemExit'):
             _ip.magic('run -e %s' % self.fname)
 
-    @dec.skip_without('nbformat')  # Requires jsonschema
     def test_run_nb(self):
         """Test %run notebook.ipynb"""
         from nbformat import v4, writes
